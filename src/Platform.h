@@ -14,6 +14,12 @@
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <psp2/kernel/threadmgr.h>
+#elif defined(__SWITCH__)
+#include <unistd.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <switch.h>
 #else
 #include <unistd.h>
 #include <pthread.h>

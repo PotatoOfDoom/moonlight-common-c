@@ -422,7 +422,7 @@ static void controlReceiveThreadFunc(void* context) {
         return;
     }
 
-    long terminationErrorCode = -1;
+    unsigned short terminationReason = -1;
 
     while (!PltIsThreadInterrupted(&controlReceiveThread)) {
         ENetEvent event;
@@ -508,21 +508,9 @@ static void controlReceiveThreadFunc(void* context) {
 
                 BbInitializeWrappedBuffer(&bb, event.packet->data, sizeof(*ctlHdr), event.packet->dataLength - sizeof(*ctlHdr), BYTE_ORDER_LITTLE);
 
-                unsigned short terminationReason;
-
                 BbGetShort(&bb, &terminationReason);
 
                 Limelog("Server notified termination reason: 0x%04x\n", terminationReason);
-
-                // SERVER_TERMINATED_INTENDED
-                if (terminationReason == 0x0100) {
-                    // Pass error code 0 to notify the client that this was not an error
-                    terminationErrorCode = 0;
-                }
-                else {
-                    // Otherwise pass the reason unmodified
-                    terminationErrorCode = terminationReason;
-                }
 
                 // We don't actually notify the connection listener until we receive
                 // the disconnect event from the server that confirms the termination.
@@ -532,7 +520,16 @@ static void controlReceiveThreadFunc(void* context) {
         }
         else if (event.type == ENET_EVENT_TYPE_DISCONNECT) {
             Limelog("Control stream received disconnect event\n");
-            ListenerCallbacks.connectionTerminated(terminationErrorCode);
+
+            // SERVER_TERMINATED_INTENDED
+            if (terminationReason == 0x0100) {
+                // Pass error code 0 to notify the client that this was not an error
+                ListenerCallbacks.connectionTerminated(0);
+            }
+            else {
+                ListenerCallbacks.connectionTerminated(terminationReason);
+            }
+
             return;
         }
     }
@@ -743,23 +740,23 @@ int startControlStream(void) {
     if (AppVersionQuad[0] >= 5) {
         ENetAddress address;
         ENetEvent event;
-        
-        enet_address_set_address(&address, (struct sockaddr *)&RemoteAddr, RemoteAddrLen);
-        enet_address_set_port(&address, 47999);
 
         // Create a client that can use 1 outgoing connection and 1 channel
-        client = enet_host_create(address.address.ss_family, NULL, 1, 1, 0, 0);
+        client = enet_host_create(NULL, 1, 1, 0, 0);
         if (client == NULL) {
+            enet_host_destroy(client);
+            client = NULL;
             return -1;
         }
 
         client->intercept = ignoreDisconnectIntercept;
 
+        enet_address_set_host(&address, RemoteAddrString);
+        address.port = 47999;
+
         // Connect to the host
         peer = enet_host_connect(client, &address, 1, 0);
         if (peer == NULL) {
-            enet_host_destroy(client);
-            client = NULL;
             return -1;
         }
 

@@ -331,6 +331,14 @@ int resolveHostName(const char* host, int family, int tcpTestPort, struct sockad
     Limelog("No working addresses found for host: %s\n", host);
     freeaddrinfo(res);
     return -1;
+#elif defined(__SWITCH__) //TODO (changed)
+    struct sockaddr_in server;
+    server.sin_len = sizeof(server);
+    server.sin_addr.s_addr = inet_addr(host);
+    server.sin_family = AF_INET;
+    memcpy(addr, &server, sizeof(server));
+    *addrLen = sizeof(server);
+    return 0;
 #else
     struct hostent *phost = gethostbyname(host);
     if (!phost) {
@@ -379,7 +387,7 @@ int initializePlatformSockets(void) {
 #if defined(LC_WINDOWS)
     WSADATA data;
     return WSAStartup(MAKEWORD(2, 0), &data);
-#elif defined(__vita__)
+#elif defined(__vita__) || defined(__SWITCH__)
     return 0; // already initialized
 #elif defined(LC_POSIX) && !defined(LC_CHROME)
     // Disable SIGPIPE signals to avoid us getting

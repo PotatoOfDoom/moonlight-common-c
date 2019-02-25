@@ -462,14 +462,14 @@ int performRtspHandshake(void) {
         ENetAddress address;
         ENetEvent event;
         
-        enet_address_set_address(&address, (struct sockaddr *)&RemoteAddr, RemoteAddrLen);
-        enet_address_set_port(&address, 48010);
-        
         // Create a client that can use 1 outgoing connection and 1 channel
-        client = enet_host_create(RemoteAddr.ss_family, NULL, 1, 1, 0, 0);
+        client = enet_host_create(NULL, 1, 1, 0, 0);
         if (client == NULL) {
             return -1;
         }
+    
+        enet_address_set_host(&address, RemoteAddrString);
+        address.port = 48010;
     
         // Connect to the host
         peer = enet_host_connect(client, &address, 1, 0);
